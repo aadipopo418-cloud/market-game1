@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Market Simulation Game</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background:#f9f9f9; }
+    h1 { color:#2c3e50; }
+    input, select { margin:5px; padding:6px; }
+    button { padding:8px 14px; margin:5px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; }
+    .add { background:#27ae60; color:white; }
+    .reset { background:#c0392b; color:white; }
+    table { border-collapse: collapse; margin-top: 15px; width: 100%; background:white; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background:#2c3e50; color:white; }
+    tr:nth-child(even) { background: #f2f2f2; }
+    #summary { margin-top:15px; font-weight:bold; color:#34495e; }
+    #chart { width: 100%; height: 350px; margin-top:20px; }
+  </style>
+</head>
+<body>
+  <h1>📊 Classroom Market Simulation</h1>
+
+  <h3>Enter Participant</h3>
+  Name: <input type="text" id="name" placeholder="e.g. Alice">
+  Role: 
+  <select id="role">
+    <option value="buyer">Buyer</option>
+    <option value="seller">Seller</option>
+  </select>
+  Price: <input type="number" id="price" placeholder="e.g. 10">
+  <button class="add" onclick="addParticipant()">➕ Add</button>
+  <button class="reset" onclick="resetGame()">🔄 Reset</button>
+
+  <div id="table"></div>
+  <div id="summary"></div>
+  <canvas id="chart"></canvas>
+
+  <script>
+    let buyers = [];
+    let sellers = [];
+    let trades = [];
+    let chartInstance = null;
+
+    function addParticipant() {
+      let name = document.getElementById("name").value.trim();
+      let role = document.getElementById("role").value;
+      let price = parseFloat(document.getElementById("price").value);
+
+      if (!name || isNaN(price)) {
+        alert("⚠ Please enter a valid name and price!");
+        return;
+      }
+
+      if (role === "buyer") {
+        buyers.push({name, price});
+      } else {
+        sellers.push({name, price});
+      }
+
+      document.getElementById("name").value = "";
+      document.getElementById("price").value = "";
+
+      attemptMatch();
+      updateTable();
+      updateChart();
+      updateSummary();
+    }
+
+    function attemptMatch() {
+      // Sort: buyers high→low, sellers low→high
+      buyers.sort((a, b) => b.price - a.price);
+      sellers.sort((a, b) => a.price - b.price);
+
+      while (buyers.length > 0 && sellers.length > 0 && buyers[0].price >= sellers[0].price) {
+        let buyer = buyers.shift();
+        let seller = sellers.shift();
+        let tradePrice = ((buyer.price + seller.price) / 2).toFixed(2);
+
+        trades.push({
+          trade: trades.length+1,
+          buyer: buyer.name,
+          buyerOffer: buyer.price,
+          seller: seller.name,
+          sellerAsk: seller.price,
+          price: parseFloat(tradePrice)
+        });
+      }
+    }
+
+    function updateTable() {
+      let html = "<table><tr><th>Trade</th><th>Buyer</th><th>Offer</th><th>Seller</th><th>Ask</th><th>Price</th></tr>";
+      trades.forEach(t => {
+        html += `<tr>
+          <td>${t.trade}</td><td>${t.buyer}</td><td>${t.buyerOffer}</td>
+          <td>${t.seller}</td><td>${t.sellerAsk}</td><td style="color:green;font-weight:bold">${t.price}</td>
+        </tr>`;
+      });
+      html += "</table>";
+      document.getElementById("table").innerHTML = html;
+    }
+
+    function updateChart() {
+      const ctx = document.getElementById('chart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: trades.map(t => "Trade " + t.trade),
+          datasets: [{
+            label: 'Trade Prices',
+            data: trades.map(t => t.price),
+            fill: false,
+            borderColor: 'blue',
+            backgroundColor: 'blue',
+            tension: 0.3,
+            pointRadius: 6,
+            pointHoverRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: true } },
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Price' } },
+            x: { title: { display: true, text: 'Trade Number' } }
+          }
+        }
+      });
+    }
+
+    function updateSummary() {
+      if (trades.length > 0) {
+        let avg = (trades.reduce((sum,t)=>sum+t.price,0)/trades.length).toFixed(2);
+        document.getElementById("summary").innerHTML = 
+          `✅ ${trades.length} trades completed. Approx. equilibrium price ≈ <span style="color:blue">${avg}</span>`;
+      } else {
+        document.getElementById("summary").innerHTML = "No trades yet.";
+      }
+    }
+
+    function resetGame() {
+      buyers = [];
+      sellers = [];
+      trades = [];
+      document.getElementById("table").innerHTML = "";
+      document.getElementById("summary").innerHTML = "";
+      if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    }
+  </script>
+</body>
+</html>
